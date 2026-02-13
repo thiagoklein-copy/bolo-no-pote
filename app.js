@@ -854,6 +854,18 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     try {
       await updateFiado(id, { paid_units: novoPaid });
       f.paid_units = novoPaid;
+
+      const dataHoje = new Date().toISOString().slice(0, 10);
+      const vendaId = await saveVendaToSupabase(pago, 'Não informado', dataHoje);
+      vendas.push({ id: vendaId, quantidade: pago, sabor: 'Não informado', data: dataHoje });
+      vendas.sort((a, b) => (parseDataLocal(a.data) || 0) - (parseDataLocal(b.data) || 0));
+      atualizarMetricas();
+      atualizarMetas();
+      atualizarEstoque();
+      atualizarGraficos();
+      atualizarDatalistSabores();
+      atualizarPrevisao();
+
       renderFiadoList();
       document.getElementById('modalPagamentoFiado').classList.add('hidden');
       this.reset();
