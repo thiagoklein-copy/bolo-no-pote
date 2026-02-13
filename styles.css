@@ -661,6 +661,45 @@ body {
   color: var(--chocolate);
 }
 
+.custo-pote-card {
+  margin-top: 1.5rem;
+}
+.custo-pote-card .subtitle {
+  margin-bottom: 0.75rem;
+}
+.custo-pote-table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+.custo-pote-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.custo-pote-table th,
+.custo-pote-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--cream-dark);
+}
+.custo-pote-table th {
+  font-weight: 700;
+  color: var(--chocolate);
+  background: var(--cream-dark);
+}
+.custo-pote-table tfoot .custo-pote-total {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--chocolate);
+  background: var(--cream);
+  border-top: 2px solid var(--cream-dark);
+}
+.custo-pote-obs {
+  font-size: 0.85rem;
+  color: var(--chocolate-light);
+  margin-top: 0.5rem;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;
@@ -849,6 +888,11 @@ body {
   color: var(--chocolate);
   font-size: 1rem;
 }
+.fiado-item .fiado-sabor {
+  font-size: 0.9rem;
+  color: var(--chocolate);
+  margin: 0.2rem 0 0 0;
+}
 .fiado-item .fiado-detalhes {
   font-size: 0.9rem;
   color: var(--chocolate-light);
@@ -1027,6 +1071,23 @@ body {
 .fluxo-valor { font-weight: 700; white-space: nowrap; }
 .fluxo-entrada .fluxo-valor { color: #15803d; }
 .fluxo-saida .fluxo-valor { color: #b91c1c; }
+.fluxo-btn-excluir {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--chocolate-light);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.fluxo-btn-excluir:hover {
+  background: var(--pastel-red);
+  color: white;
+}
 .fluxo-empty { padding: 1rem; color: var(--chocolate-light); font-style: italic; }
 .fluxo-balanco {
   padding: 1rem 0.75rem;

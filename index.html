@@ -68,6 +68,7 @@
       <button type="button" class="nav-tab" data-panel="previsao">Previsão de lucro</button>
       <button type="button" class="nav-tab" data-panel="sabores">Por sabor</button>
       <button type="button" class="nav-tab" data-panel="fluxo">Entradas e Saídas</button>
+      <button type="button" class="nav-tab" data-panel="insumos">Gestão de Insumos</button>
       <button type="button" class="nav-tab" data-panel="fiado">Fiado</button>
     </nav>
 
@@ -175,31 +176,49 @@
           </div>
         </article>
       </section>
+      </div>
 
-      <section class="insumos-section bento">
-        <article class="card insumos-card">
-          <h3>🥣 Gestão de Insumos</h3>
-          <p class="subtitle">Atualize o preço por quilo/unidade para recalcular os custos</p>
-          <div class="insumos-tables">
-            <div class="insumos-group">
-              <h4>Massa Chocolate</h4>
-              <div id="tabelaMassa" class="insumos-table"></div>
-              <p class="custo-componente">Custo massa: R$ <span id="custoMassa">17,29</span></p>
+      <div id="painel-insumos" class="panel hidden">
+        <section class="bento">
+          <article class="card insumos-card">
+            <h3>🥣 Gestão de Insumos</h3>
+            <p class="subtitle">Atualize o preço por quilo/unidade para recalcular os custos</p>
+            <div class="insumos-tables">
+              <div class="insumos-group">
+                <h4>Massa Chocolate</h4>
+                <div id="tabelaMassa" class="insumos-table"></div>
+                <p class="custo-componente">Custo massa: R$ <span id="custoMassa">17,29</span></p>
+              </div>
+              <div class="insumos-group">
+                <h4>Recheio</h4>
+                <div id="tabelaRecheio" class="insumos-table"></div>
+                <p class="custo-componente">Custo recheio: R$ <span id="custoRecheio">16,17</span></p>
+              </div>
+              <div class="insumos-group">
+                <h4>Cobertura</h4>
+                <div id="tabelaCobertura" class="insumos-table"></div>
+                <p class="custo-componente">Custo cobertura: R$ <span id="custoCobertura">11,83</span></p>
+              </div>
             </div>
-            <div class="insumos-group">
-              <h4>Recheio</h4>
-              <div id="tabelaRecheio" class="insumos-table"></div>
-              <p class="custo-componente">Custo recheio: R$ <span id="custoRecheio">16,17</span></p>
+            <p class="insumos-total">Custo total por receita (12 un.): R$ <strong id="custoTotalReceita">60,29</strong></p>
+          </article>
+          <article class="card custo-pote-card">
+            <h3>🧁 Custo por bolo no pote</h3>
+            <p class="subtitle">Montagem do pote (de baixo para cima): 40g bolo, 50g recheio, 60g bolo, 50g recheio. Inclui produção e embalagem.</p>
+            <div class="custo-pote-table-wrap">
+              <table class="custo-pote-table" id="tabelaCustoPote">
+                <thead>
+                  <tr><th>Item</th><th>Valor</th></tr>
+                </thead>
+                <tbody id="tabelaCustoPoteBody"></tbody>
+                <tfoot>
+                  <tr class="custo-pote-total"><td>Total por pote</td><td id="custoPoteTotal">R$ 0,00</td></tr>
+                </tfoot>
+              </table>
             </div>
-            <div class="insumos-group">
-              <h4>Cobertura</h4>
-              <div id="tabelaCobertura" class="insumos-table"></div>
-              <p class="custo-componente">Custo cobertura: R$ <span id="custoCobertura">11,83</span></p>
-            </div>
-          </div>
-          <p class="insumos-total">Custo total por receita (12 un.): R$ <strong id="custoTotalReceita">60,29</strong></p>
-        </article>
-      </section>
+            <p class="custo-pote-obs">Produção: R$ 15 por fornada ÷ 12 unidades = R$ 1,25/un. Embalagem: R$ 79,89 ÷ 120 potes = R$ <span id="embalagemPorUn">0,67</span>/un.</p>
+          </article>
+        </section>
       </div>
 
       <div id="painel-sabores" class="panel hidden">
@@ -359,6 +378,13 @@
       </div>
       <form id="formAddCompraFiado" class="modal-form">
         <p class="fiado-modal-nome" id="addCompraNome"></p>
+        <label>Sabor
+          <select id="addCompraSabor" required>
+            <option value="Branquinho">Branquinho</option>
+            <option value="Brigadeiro">Brigadeiro</option>
+            <option value="Misto">Misto</option>
+          </select>
+        </label>
         <label>Unidades a adicionar <input type="number" id="addCompraUnidades" min="1" value="1" required></label>
         <button type="submit" class="btn-submit">Adicionar</button>
       </form>
@@ -373,6 +399,7 @@
       </div>
       <form id="formPagamentoFiado" class="modal-form">
         <p class="fiado-modal-nome" id="pagamentoNome"></p>
+        <label>Sabor (o que está pagando) <select id="pagamentoSaborSelect"></select></label>
         <p class="subtitle" id="pagamentoRestante"></p>
         <label>Unidades que está pagando agora <input type="number" id="pagamentoUnidades" min="1" value="1" required></label>
         <button type="submit" class="btn-submit">Registrar</button>

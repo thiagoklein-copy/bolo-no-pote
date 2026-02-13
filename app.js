@@ -11,7 +11,9 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
   const META_DATA = '2026-08-10';
   const UNIDADES_POR_RECEITA = 12;
   const MAO_DE_OBRA = 15;
-  const EMBALAGEM_POR_UNIDADE = 0.66;
+  const EMBALAGEM_PACOTE_PRECO = 79.89;
+  const EMBALAGEM_PACOTE_UN = 120;
+  const EMBALAGEM_POR_UNIDADE = EMBALAGEM_PACOTE_PRECO / EMBALAGEM_PACOTE_UN;
   const PRECO_VENDA = 12;
 
   const STORAGE_TEMA = 'bolo_tema';
@@ -469,10 +471,11 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       const quitado = restante === 0;
       const div = document.createElement('div');
       div.className = 'fiado-item' + (quitado ? ' quitado' : '');
-      const saborLabel = (f.sabor && f.sabor !== 'Não informado') ? ' · ' + f.sabor : '';
+      const saborTexto = (f.sabor && f.sabor !== 'Não informado') ? f.sabor : 'Não informado';
       div.innerHTML =
-        '<div><span class="fiado-nome">' + (f.nome || 'Sem nome') + '</span>' + saborLabel +
+        '<div><span class="fiado-nome">' + (f.nome || 'Sem nome') + '</span>' +
         (quitado ? ' <span class="fiado-detalhes">✓ Quitado</span>' : '') +
+        '<p class="fiado-sabor">Sabor: <strong>' + saborTexto + '</strong></p>' +
         '<p class="fiado-detalhes">Comprou ' + f.total_units + ' un. · Pagou ' + f.paid_units + ' un.' +
         (restante > 0 ? ' · Faltam <span class="fiado-restante">' + restante + ' un. (R$ ' + valorRestante.toFixed(2) + ')</span>' : '') + '</p></div>' +
         '<div class="fiado-actions"></div>';
@@ -504,19 +507,28 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
 
   function abrirModalAddCompra(f) {
     document.getElementById('addCompraNome').textContent = f.nome;
+    document.getElementById('addCompraSabor').value = (f.sabor && f.sabor !== 'Não informado') ? f.sabor : 'Branquinho';
     document.getElementById('addCompraUnidades').value = 1;
     document.getElementById('modalAddCompraFiado').classList.remove('hidden');
-    document.getElementById('formAddCompraFiado').dataset.fiadoId = f.id;
+    document.getElementById('formAddCompraFiado').dataset.addCompraNome = f.nome;
   }
 
   function abrirModalPagamento(f) {
-    const restante = Math.max(0, f.total_units - f.paid_units);
+    const daPessoa = fiado.filter((x) => x.nome === f.nome && (x.total_units - x.paid_units) > 0);
     document.getElementById('pagamentoNome').textContent = f.nome;
-    document.getElementById('pagamentoRestante').textContent = 'Faltam ' + restante + ' unidades (máx. ' + restante + ' para registrar agora).';
-    document.getElementById('pagamentoUnidades').value = Math.min(1, restante);
-    document.getElementById('pagamentoUnidades').setAttribute('max', restante);
+    const sel = document.getElementById('pagamentoSaborSelect');
+    if (sel) {
+      sel.innerHTML = daPessoa.map((x) => '<option value="' + x.id + '">' + (x.sabor || 'Não informado') + '</option>').join('');
+      sel.value = f.id;
+      if (daPessoa.length) {
+        const restante = Math.max(0, f.total_units - f.paid_units);
+        document.getElementById('pagamentoRestante').textContent = 'Faltam ' + restante + ' unidades (máx. ' + restante + ' para registrar agora).';
+        document.getElementById('pagamentoUnidades').value = Math.min(1, restante);
+        document.getElementById('pagamentoUnidades').setAttribute('max', restante);
+      }
+    }
     document.getElementById('modalPagamentoFiado').classList.remove('hidden');
-    document.getElementById('formPagamentoFiado').dataset.fiadoId = f.id;
+    document.getElementById('formPagamentoFiado').dataset.pagamentoNome = f.nome;
   }
 
   function normalizarSaborChave(s) {
@@ -644,6 +656,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       if (createdAt >= inicio && createdAt <= fim) {
         itens.push({
           tipo: 'entrada',
+          id: v.id,
           data: createdAt,
           valor: (v.quantidade || 0) * PRECO_VENDA,
           descricao: 'Venda – ' + (v.quantidade || 0) + ' un.',
@@ -656,6 +669,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       if (createdAt >= inicio && createdAt <= fim) {
         itens.push({
           tipo: 'saida',
+          id: s.id,
           data: createdAt,
           valor: s.valor || 0,
           descricao: (s.ingredientes && s.ingredientes.length) ? s.ingredientes.join(', ') : 'Saída',
@@ -692,12 +706,23 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       ? '<li class="fluxo-empty">Nenhuma movimentação no período.</li>'
       : itens.map((i) => {
           const isEntrada = i.tipo === 'entrada';
-          return '<li class="fluxo-item fluxo-' + i.tipo + '">' +
+          return '<li class="fluxo-item fluxo-' + i.tipo + '" data-id="' + (i.id || '') + '" data-tipo="' + i.tipo + '">' +
             '<span class="fluxo-data">' + formatDataHora(i.data) + '</span> ' +
             '<span class="fluxo-desc">' + (i.descricao || (isEntrada ? 'Entrada' : 'Saída')) + '</span> ' +
-            '<span class="fluxo-valor">' + (isEntrada ? '+' : '−') + ' R$ ' + i.valor.toFixed(2).replace('.', ',') + '</span>' +
+            '<span class="fluxo-valor">' + (isEntrada ? '+' : '−') + ' R$ ' + i.valor.toFixed(2).replace('.', ',') + '</span> ' +
+            '<button type="button" class="fluxo-btn-excluir" title="Excluir" aria-label="Excluir">&times;</button>' +
             '</li>';
         }).join('');
+    list.querySelectorAll('.fluxo-btn-excluir').forEach((btn) => {
+      btn.addEventListener('click', function () {
+        const li = this.closest('li');
+        const id = li && li.dataset.id;
+        const tipo = li && li.dataset.tipo;
+        if (!id || !tipo) return;
+        if (!confirm('Tem certeza que deseja excluir este item?')) return;
+        excluirMovimentacao(tipo, id);
+      });
+    });
     if (balancoEl) {
       balancoEl.className = 'fluxo-balanco ' + (balanco >= 0 ? 'positivo' : 'negativo');
       balancoEl.textContent = 'Balanço: R$ ' + balanco.toFixed(2).replace('.', ',');
@@ -707,7 +732,9 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
   function renderFluxoIngredientes() {
     const container = document.getElementById('saidaIngredientesList');
     if (!container) return;
-    const lista = getListaIngredientes();
+    const ingredientes = getListaIngredientes();
+    const extras = ['Embalagem (pote)', 'Produção / mão de obra'];
+    const lista = [...ingredientes, ...extras];
     container.innerHTML = lista.map((nome) =>
       '<label class="fluxo-check"><input type="checkbox" name="saidaIngrediente" value="' + nome.replace(/"/g, '&quot;') + '"> ' + nome + '</label>'
     ).join('');
@@ -721,6 +748,39 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     }).select('id, valor, ingredientes, created_at').single();
     if (error) throw error;
     return row;
+  }
+
+  async function deleteVenda(id) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const { error } = await supabase.from('vendas').delete().eq('id', id);
+    if (error) throw error;
+    vendas = vendas.filter((v) => v.id !== id);
+  }
+
+  async function deleteSaida(id) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const { error } = await supabase.from('saidas').delete().eq('id', id);
+    if (error) throw error;
+    saidas = saidas.filter((s) => s.id !== id);
+  }
+
+  async function excluirMovimentacao(tipo, id) {
+    try {
+      if (tipo === 'entrada') await deleteVenda(id);
+      else if (tipo === 'saida') await deleteSaida(id);
+      else return;
+      atualizarMetricas();
+      atualizarMetas();
+      atualizarEstoque();
+      atualizarGraficos();
+      atualizarDatalistSabores();
+      atualizarPrevisao();
+      atualizarSabores();
+      renderFluxoList();
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao excluir. ' + (err.message || ''));
+    }
   }
 
   function exportFluxoCSV() {
@@ -743,14 +803,53 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     const custoM = getCustoMassa();
     const custoR = getCustoRecheio();
     const custoC = getCustoCobertura();
-    document.getElementById('custoMassa').textContent = custoM.toFixed(2);
-    document.getElementById('custoRecheio').textContent = custoR.toFixed(2);
-    document.getElementById('custoCobertura').textContent = custoC.toFixed(2);
-    document.getElementById('custoTotalReceita').textContent = getCustoTotalReceita().toFixed(2);
+    const custoTotalRec = getCustoTotalReceita();
+    const elCustoMassa = document.getElementById('custoMassa');
+    const elCustoRecheio = document.getElementById('custoRecheio');
+    const elCustoCobertura = document.getElementById('custoCobertura');
+    const elCustoTotalReceita = document.getElementById('custoTotalReceita');
+    if (elCustoMassa) elCustoMassa.textContent = custoM.toFixed(2);
+    if (elCustoRecheio) elCustoRecheio.textContent = custoR.toFixed(2);
+    if (elCustoCobertura) elCustoCobertura.textContent = custoC.toFixed(2);
+    if (elCustoTotalReceita) elCustoTotalReceita.textContent = custoTotalRec.toFixed(2);
 
     renderTabelaInsumos('tabelaMassa', insumos.massa);
     renderTabelaInsumos('tabelaRecheio', insumos.recheio);
     renderTabelaInsumos('tabelaCobertura', insumos.cobertura);
+    atualizarCustoPoteUI();
+  }
+
+  function atualizarCustoPoteUI() {
+    const custoM = getCustoMassa();
+    const custoR = getCustoRecheio();
+    const custoC = getCustoCobertura();
+    const porReceita = 12;
+    const boloPorPote = custoM / porReceita;
+    const recheioPorPote = custoR / porReceita;
+    const coberturaPorPote = custoC / porReceita;
+    const camada40Bolo = (40 / 100) * boloPorPote;
+    const camada60Bolo = (60 / 100) * boloPorPote;
+    const camada50Recheio1 = (50 / 100) * recheioPorPote;
+    const camada50Recheio2 = (50 / 100) * recheioPorPote;
+    const producaoPorPote = MAO_DE_OBRA / UNIDADES_POR_RECEITA;
+    const embalagemPorUn = EMBALAGEM_PACOTE_PRECO / EMBALAGEM_PACOTE_UN;
+    const totalPote = getCustoPorUnidade();
+
+    const tbody = document.getElementById('tabelaCustoPoteBody');
+    if (tbody) {
+      tbody.innerHTML =
+        '<tr><td>Camada 1: 40g bolo</td><td>R$ ' + camada40Bolo.toFixed(2).replace('.', ',') + '</td></tr>' +
+        '<tr><td>Camada 2: 50g recheio</td><td>R$ ' + camada50Recheio1.toFixed(2).replace('.', ',') + '</td></tr>' +
+        '<tr><td>Camada 3: 60g bolo</td><td>R$ ' + camada60Bolo.toFixed(2).replace('.', ',') + '</td></tr>' +
+        '<tr><td>Camada 4: 50g recheio</td><td>R$ ' + camada50Recheio2.toFixed(2).replace('.', ',') + '</td></tr>' +
+        '<tr><td>Cobertura</td><td>R$ ' + coberturaPorPote.toFixed(2).replace('.', ',') + '</td></tr>' +
+        '<tr><td>Produção (R$ 15 ÷ 12 un.)</td><td>R$ ' + producaoPorPote.toFixed(2).replace('.', ',') + '</td></tr>' +
+        '<tr><td>Embalagem (R$ 79,89 ÷ 120 un.)</td><td>R$ ' + embalagemPorUn.toFixed(2).replace('.', ',') + '</td></tr>';
+    }
+    const elTotal = document.getElementById('custoPoteTotal');
+    if (elTotal) elTotal.textContent = 'R$ ' + totalPote.toFixed(2).replace('.', ',');
+    const elEmb = document.getElementById('embalagemPorUn');
+    if (elEmb) elEmb.textContent = embalagemPorUn.toFixed(2).replace('.', ',');
   }
 
   function renderTabelaInsumos(containerId, itens) {
@@ -790,10 +889,19 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
         const item = insumos[key][i];
         const total = item.tipo === 'unidade' ? item.quantidade * val : item.quantidade * val;
         tr.querySelector('.total-cell').textContent = total.toFixed(2);
-        document.getElementById('custoMassa').textContent = getCustoMassa().toFixed(2);
-        document.getElementById('custoRecheio').textContent = getCustoRecheio().toFixed(2);
-        document.getElementById('custoCobertura').textContent = getCustoCobertura().toFixed(2);
-        document.getElementById('custoTotalReceita').textContent = getCustoTotalReceita().toFixed(2);
+        const cm = getCustoMassa();
+        const cr = getCustoRecheio();
+        const cc = getCustoCobertura();
+        const ctr = getCustoTotalReceita();
+        const elM = document.getElementById('custoMassa');
+        const elR = document.getElementById('custoRecheio');
+        const elC = document.getElementById('custoCobertura');
+        const elT = document.getElementById('custoTotalReceita');
+        if (elM) elM.textContent = cm.toFixed(2);
+        if (elR) elR.textContent = cr.toFixed(2);
+        if (elC) elC.textContent = cc.toFixed(2);
+        if (elT) elT.textContent = ctr.toFixed(2);
+        atualizarCustoPoteUI();
         atualizarMetricas();
         atualizarMetas();
         if (window.chartVendas) window.chartVendas.update('none');
@@ -1055,13 +1163,20 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
   });
   document.getElementById('formAddCompraFiado').addEventListener('submit', async function (e) {
     e.preventDefault();
-    const id = this.dataset.fiadoId;
+    const nome = (this.dataset.addCompraNome || '').trim();
+    const sabor = document.getElementById('addCompraSabor').value || 'Não informado';
     const add = parseInt(document.getElementById('addCompraUnidades').value, 10) || 0;
-    const f = fiado.find((x) => x.id === id);
-    if (!f || add <= 0) return;
+    if (!nome || add <= 0) return;
     try {
-      await updateFiado(id, { total_units: f.total_units + add });
-      f.total_units += add;
+      const existente = fiado.find((x) => x.nome === nome && (x.sabor || 'Não informado') === sabor);
+      if (existente) {
+        await updateFiado(existente.id, { total_units: existente.total_units + add });
+        existente.total_units += add;
+      } else {
+        const row = await insertFiado(nome, sabor, add);
+        fiado.push({ id: row.id, nome: row.nome, sabor: row.sabor || 'Não informado', total_units: row.total_units, paid_units: row.paid_units });
+        fiado.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+      }
       renderFiadoList();
       document.getElementById('modalAddCompraFiado').classList.add('hidden');
       this.reset();
@@ -1069,6 +1184,16 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       console.error(err);
       alert('Erro ao salvar. ' + (err.message || ''));
     }
+  });
+
+  document.getElementById('pagamentoSaborSelect').addEventListener('change', function () {
+    const id = this.value;
+    const f = fiado.find((x) => x.id === id);
+    if (!f) return;
+    const restante = Math.max(0, f.total_units - f.paid_units);
+    document.getElementById('pagamentoRestante').textContent = 'Faltam ' + restante + ' unidades (máx. ' + restante + ' para registrar agora).';
+    document.getElementById('pagamentoUnidades').value = Math.min(parseInt(document.getElementById('pagamentoUnidades').value, 10) || 1, restante);
+    document.getElementById('pagamentoUnidades').setAttribute('max', restante);
   });
 
   document.getElementById('closeModalPagamentoFiado').addEventListener('click', function () {
@@ -1079,7 +1204,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
   });
   document.getElementById('formPagamentoFiado').addEventListener('submit', async function (e) {
     e.preventDefault();
-    const id = this.dataset.fiadoId;
+    const id = document.getElementById('pagamentoSaborSelect').value;
     const pago = parseInt(document.getElementById('pagamentoUnidades').value, 10) || 0;
     const f = fiado.find((x) => x.id === id);
     if (!f || pago <= 0) return;

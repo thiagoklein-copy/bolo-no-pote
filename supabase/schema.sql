@@ -62,6 +62,8 @@ DROP POLICY IF EXISTS "config_update" ON config;
 
 CREATE POLICY "vendas_select" ON vendas FOR SELECT USING (true);
 CREATE POLICY "vendas_insert" ON vendas FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "vendas_delete" ON vendas;
+CREATE POLICY "vendas_delete" ON vendas FOR DELETE USING (true);
 CREATE POLICY "config_select" ON config FOR SELECT USING (true);
 CREATE POLICY "config_update" ON config FOR UPDATE USING (true);
 CREATE POLICY "config_insert" ON config FOR INSERT WITH CHECK (true);
@@ -97,5 +99,7 @@ CREATE TABLE IF NOT EXISTS saidas (
 ALTER TABLE saidas ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "saidas_select" ON saidas;
 DROP POLICY IF EXISTS "saidas_insert" ON saidas;
+DROP POLICY IF EXISTS "saidas_delete" ON saidas;
 CREATE POLICY "saidas_select" ON saidas FOR SELECT USING (true);
 CREATE POLICY "saidas_insert" ON saidas FOR INSERT WITH CHECK (true);
+CREATE POLICY "saidas_delete" ON saidas FOR DELETE USING (true);
