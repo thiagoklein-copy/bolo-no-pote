@@ -63,7 +63,14 @@
       </div>
     </header>
 
+    <nav class="nav-tabs" role="tablist">
+      <button type="button" class="nav-tab active" data-panel="resumo">Resumo</button>
+      <button type="button" class="nav-tab" data-panel="previsao">Previsão de lucro</button>
+      <button type="button" class="nav-tab" data-panel="fiado">Fiado</button>
+    </nav>
+
     <main class="main">
+      <div id="painel-resumo" class="panel active">
       <section class="cta-section">
         <button type="button" class="btn-register" id="btnRegistrarVenda">
           <span class="btn-icon">➕</span>
@@ -206,6 +213,41 @@
           <p class="insumos-total">Custo total por receita (12 un.): R$ <strong id="custoTotalReceita">60,29</strong></p>
         </article>
       </section>
+      </div>
+
+      <div id="painel-previsao" class="panel hidden">
+        <section class="bento">
+          <article class="card">
+            <h3>📈 Previsão com base nos últimos 30 dias</h3>
+            <p class="subtitle">Média diária de vendas aplicada aos próximos 7 dias e ao próximo mês</p>
+            <div class="previsao-grid">
+              <div class="previsao-bloco">
+                <h4>Próximos 7 dias</h4>
+                <p><strong id="prev7Un">0</strong> unidades</p>
+                <p>Faturamento: <strong id="prev7Fat">R$ 0,00</strong></p>
+                <p>Lucro previsto: <strong id="prev7Lucro">R$ 0,00</strong></p>
+              </div>
+              <div class="previsao-bloco">
+                <h4>Próximo mês</h4>
+                <p><strong id="prevMesUn">0</strong> unidades</p>
+                <p>Faturamento: <strong id="prevMesFat">R$ 0,00</strong></p>
+                <p>Lucro previsto: <strong id="prevMesLucro">R$ 0,00</strong></p>
+              </div>
+            </div>
+          </article>
+        </section>
+      </div>
+
+      <div id="painel-fiado" class="panel hidden">
+        <section class="bento">
+          <article class="card fiado-card">
+            <h3>📋 Controle de fiado</h3>
+            <p class="subtitle">Paga no dia 5 (CLT) ou 12 (PJ). Adicione compras e registre pagamentos.</p>
+            <button type="button" class="btn-register btn-fiado" id="btnNovoFiado">➕ Novo fiado</button>
+            <div class="fiado-list" id="fiadoList"></div>
+          </article>
+        </section>
+      </div>
     </main>
   </div>
 
@@ -230,6 +272,49 @@
           <input type="date" id="vendaData" required>
         </label>
         <button type="submit" class="btn-submit">Salvar venda</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalNovoFiado">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Novo fiado</h2>
+        <button type="button" class="modal-close" id="closeModalNovoFiado">&times;</button>
+      </div>
+      <form id="formNovoFiado" class="modal-form">
+        <label>Nome <input type="text" id="fiadoNome" required placeholder="Ex: Jaqueline"></label>
+        <label>Unidades (potes) <input type="number" id="fiadoUnidades" min="1" value="1" required></label>
+        <button type="submit" class="btn-submit">Adicionar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalAddCompraFiado">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Adicionar compra</h2>
+        <button type="button" class="modal-close" id="closeModalAddCompraFiado">&times;</button>
+      </div>
+      <form id="formAddCompraFiado" class="modal-form">
+        <p class="fiado-modal-nome" id="addCompraNome"></p>
+        <label>Unidades a adicionar <input type="number" id="addCompraUnidades" min="1" value="1" required></label>
+        <button type="submit" class="btn-submit">Adicionar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalPagamentoFiado">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Registrar pagamento</h2>
+        <button type="button" class="modal-close" id="closeModalPagamentoFiado">&times;</button>
+      </div>
+      <form id="formPagamentoFiado" class="modal-form">
+        <p class="fiado-modal-nome" id="pagamentoNome"></p>
+        <p class="subtitle" id="pagamentoRestante"></p>
+        <label>Unidades que está pagando agora <input type="number" id="pagamentoUnidades" min="1" value="1" required></label>
+        <button type="submit" class="btn-submit">Registrar</button>
       </form>
     </div>
   </div>

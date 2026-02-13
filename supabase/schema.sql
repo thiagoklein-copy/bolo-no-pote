@@ -65,3 +65,21 @@ CREATE POLICY "vendas_insert" ON vendas FOR INSERT WITH CHECK (true);
 CREATE POLICY "config_select" ON config FOR SELECT USING (true);
 CREATE POLICY "config_update" ON config FOR UPDATE USING (true);
 CREATE POLICY "config_insert" ON config FOR INSERT WITH CHECK (true);
+
+-- Tabela de fiado (vendas a prazo: nome, total de unidades, quantas já pagou)
+CREATE TABLE IF NOT EXISTS fiado (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nome TEXT NOT NULL,
+  total_units INTEGER NOT NULL DEFAULT 0,
+  paid_units INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE fiado ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "fiado_select" ON fiado;
+DROP POLICY IF EXISTS "fiado_insert" ON fiado;
+DROP POLICY IF EXISTS "fiado_update" ON fiado;
+CREATE POLICY "fiado_select" ON fiado FOR SELECT USING (true);
+CREATE POLICY "fiado_insert" ON fiado FOR INSERT WITH CHECK (true);
+CREATE POLICY "fiado_update" ON fiado FOR UPDATE USING (true);

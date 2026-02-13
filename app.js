@@ -52,6 +52,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
   let insumos = JSON.parse(JSON.stringify(INSUMOS_INICIAIS));
   let vendas = [];
   let receitasProduzidas = 0;
+  let fiado = [];
 
   function getTemaAtual() {
     const salvo = localStorage.getItem(STORAGE_TEMA);
@@ -75,6 +76,10 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       supabase.from('vendas').select('id, quantidade, sabor, data').order('data', { ascending: true }),
       supabase.from('config').select('receitas_produzidas, insumos').eq('id', 1).single(),
     ]);
+    let fiadoRes = { data: null };
+    try {
+      fiadoRes = await supabase.from('fiado').select('id, nome, total_units, paid_units').order('nome', { ascending: true });
+    } catch (_) {}
     if (vendasRes.data && Array.isArray(vendasRes.data)) {
       vendas = vendasRes.data.map((r) => ({
         id: r.id,
@@ -88,6 +93,16 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       if (configRes.data.insumos && configRes.data.insumos.massa) {
         insumos = configRes.data.insumos;
       }
+    }
+    if (fiadoRes.data && Array.isArray(fiadoRes.data)) {
+      fiado = fiadoRes.data.map((r) => ({
+        id: r.id,
+        nome: r.nome || '',
+        total_units: r.total_units ?? 0,
+        paid_units: r.paid_units ?? 0,
+      }));
+    } else {
+      fiado = [];
     }
   }
 
@@ -364,6 +379,123 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     document.getElementById('potesEstoque').textContent = estoque;
   }
 
+  function atualizarPrevisao() {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const trintaDiasAtras = new Date(hoje);
+    trintaDiasAtras.setDate(hoje.getDate() - 30);
+    const vendasUltimos30 = vendas.filter((v) => {
+      const d = parseDataLocal(v.data);
+      return d && d >= trintaDiasAtras && d <= hoje;
+    });
+    const totalUn30 = totalUnidades(vendasUltimos30);
+    const diasComDados = 30;
+    const mediaDiaria = diasComDados > 0 ? totalUn30 / diasComDados : 0;
+
+    const prev7Un = Math.round(mediaDiaria * 7);
+    const prev7Fat = prev7Un * PRECO_VENDA;
+    const prev7Lucro = prev7Un * getLucroPorUnidade();
+
+    const proximoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    const diasProximoMes = proximoMes.getDate();
+    const prevMesUn = Math.round(mediaDiaria * diasProximoMes);
+    const prevMesFat = prevMesUn * PRECO_VENDA;
+    const prevMesLucro = prevMesUn * getLucroPorUnidade();
+
+    const el7Un = document.getElementById('prev7Un');
+    const el7Fat = document.getElementById('prev7Fat');
+    const el7Lucro = document.getElementById('prev7Lucro');
+    const elMesUn = document.getElementById('prevMesUn');
+    const elMesFat = document.getElementById('prevMesFat');
+    const elMesLucro = document.getElementById('prevMesLucro');
+    if (el7Un) el7Un.textContent = prev7Un;
+    if (el7Fat) el7Fat.textContent = formatBrl(prev7Fat);
+    if (el7Lucro) el7Lucro.textContent = formatBrl(prev7Lucro);
+    if (elMesUn) elMesUn.textContent = prevMesUn;
+    if (elMesFat) elMesFat.textContent = formatBrl(prevMesFat);
+    if (elMesLucro) elMesLucro.textContent = formatBrl(prevMesLucro);
+  }
+
+  async function insertFiado(nome, unidades) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const { data: row, error } = await supabase.from('fiado').insert({
+      nome: String(nome).trim(),
+      total_units: Number(unidades) || 0,
+      paid_units: 0,
+      updated_at: new Date().toISOString(),
+    }).select('id, nome, total_units, paid_units').single();
+    if (error) throw error;
+    return row;
+  }
+
+  async function updateFiado(id, updates) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const { error } = await supabase.from('fiado').update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id);
+    if (error) throw error;
+  }
+
+  function renderFiadoList() {
+    const container = document.getElementById('fiadoList');
+    if (!container) return;
+    container.innerHTML = '';
+    fiado.forEach((f) => {
+      const restante = Math.max(0, f.total_units - f.paid_units);
+      const valorRestante = restante * PRECO_VENDA;
+      const quitado = restante === 0;
+      const div = document.createElement('div');
+      div.className = 'fiado-item' + (quitado ? ' quitado' : '');
+      div.innerHTML =
+        '<div><span class="fiado-nome">' + (f.nome || 'Sem nome') + '</span>' +
+        (quitado ? ' <span class="fiado-detalhes">✓ Quitado</span>' : '') +
+        '<p class="fiado-detalhes">Comprou ' + f.total_units + ' un. · Pagou ' + f.paid_units + ' un.' +
+        (restante > 0 ? ' · Faltam <span class="fiado-restante">' + restante + ' un. (R$ ' + valorRestante.toFixed(2) + ')</span>' : '') + '</p></div>' +
+        '<div class="fiado-actions"></div>';
+      const actions = div.querySelector('.fiado-actions');
+      if (!quitado) {
+        const btnAdd = document.createElement('button');
+        btnAdd.type = 'button';
+        btnAdd.className = 'btn-small';
+        btnAdd.textContent = 'Adicionar compra';
+        btnAdd.addEventListener('click', () => abrirModalAddCompra(f));
+        actions.appendChild(btnAdd);
+        const btnPag = document.createElement('button');
+        btnPag.type = 'button';
+        btnPag.className = 'btn-small btn-ok';
+        btnPag.textContent = 'Registrar pagamento';
+        btnPag.addEventListener('click', () => abrirModalPagamento(f));
+        actions.appendChild(btnPag);
+      } else {
+        const btnAdd = document.createElement('button');
+        btnAdd.type = 'button';
+        btnAdd.className = 'btn-small';
+        btnAdd.textContent = 'Adicionar compra';
+        btnAdd.addEventListener('click', () => abrirModalAddCompra(f));
+        actions.appendChild(btnAdd);
+      }
+      container.appendChild(div);
+    });
+  }
+
+  function abrirModalAddCompra(f) {
+    document.getElementById('addCompraNome').textContent = f.nome;
+    document.getElementById('addCompraUnidades').value = 1;
+    document.getElementById('modalAddCompraFiado').classList.remove('hidden');
+    document.getElementById('formAddCompraFiado').dataset.fiadoId = f.id;
+  }
+
+  function abrirModalPagamento(f) {
+    const restante = Math.max(0, f.total_units - f.paid_units);
+    document.getElementById('pagamentoNome').textContent = f.nome;
+    document.getElementById('pagamentoRestante').textContent = 'Faltam ' + restante + ' unidades (máx. ' + restante + ' para registrar agora).';
+    document.getElementById('pagamentoUnidades').value = Math.min(1, restante);
+    document.getElementById('pagamentoUnidades').setAttribute('max', restante);
+    document.getElementById('modalPagamentoFiado').classList.remove('hidden');
+    document.getElementById('formPagamentoFiado').dataset.fiadoId = f.id;
+  }
+
   function atualizarInsumosUI() {
     const custoM = getCustoMassa();
     const custoR = getCustoRecheio();
@@ -591,6 +723,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       atualizarEstoque();
       atualizarGraficos();
       atualizarDatalistSabores();
+      atualizarPrevisao();
     } catch (err) {
       console.error('Erro ao registrar venda:', err);
       const msg = err && err.message ? err.message : String(err);
@@ -636,6 +769,100 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     });
   });
 
+  document.querySelectorAll('.nav-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      const panelId = 'painel-' + this.getAttribute('data-panel');
+      document.querySelectorAll('.nav-tab').forEach((t) => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach((p) => {
+        p.classList.remove('active');
+        p.classList.add('hidden');
+      });
+      this.classList.add('active');
+      const panel = document.getElementById(panelId);
+      if (panel) {
+        panel.classList.add('active');
+        panel.classList.remove('hidden');
+      }
+    });
+  });
+
+  document.getElementById('btnNovoFiado').addEventListener('click', function () {
+    document.getElementById('fiadoNome').value = '';
+    document.getElementById('fiadoUnidades').value = 1;
+    document.getElementById('modalNovoFiado').classList.remove('hidden');
+  });
+  document.getElementById('closeModalNovoFiado').addEventListener('click', function () {
+    document.getElementById('modalNovoFiado').classList.add('hidden');
+  });
+  document.getElementById('modalNovoFiado').addEventListener('click', function (e) {
+    if (e.target === this) this.classList.add('hidden');
+  });
+  document.getElementById('formNovoFiado').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const nome = document.getElementById('fiadoNome').value.trim();
+    const unidades = parseInt(document.getElementById('fiadoUnidades').value, 10) || 1;
+    try {
+      const row = await insertFiado(nome, unidades);
+      fiado.push({ id: row.id, nome: row.nome, total_units: row.total_units, paid_units: row.paid_units });
+      fiado.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
+      renderFiadoList();
+      document.getElementById('modalNovoFiado').classList.add('hidden');
+      this.reset();
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar. ' + (err.message || ''));
+    }
+  });
+
+  document.getElementById('closeModalAddCompraFiado').addEventListener('click', function () {
+    document.getElementById('modalAddCompraFiado').classList.add('hidden');
+  });
+  document.getElementById('modalAddCompraFiado').addEventListener('click', function (e) {
+    if (e.target === this) this.classList.add('hidden');
+  });
+  document.getElementById('formAddCompraFiado').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const id = this.dataset.fiadoId;
+    const add = parseInt(document.getElementById('addCompraUnidades').value, 10) || 0;
+    const f = fiado.find((x) => x.id === id);
+    if (!f || add <= 0) return;
+    try {
+      await updateFiado(id, { total_units: f.total_units + add });
+      f.total_units += add;
+      renderFiadoList();
+      document.getElementById('modalAddCompraFiado').classList.add('hidden');
+      this.reset();
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar. ' + (err.message || ''));
+    }
+  });
+
+  document.getElementById('closeModalPagamentoFiado').addEventListener('click', function () {
+    document.getElementById('modalPagamentoFiado').classList.add('hidden');
+  });
+  document.getElementById('modalPagamentoFiado').addEventListener('click', function (e) {
+    if (e.target === this) this.classList.add('hidden');
+  });
+  document.getElementById('formPagamentoFiado').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const id = this.dataset.fiadoId;
+    const pago = parseInt(document.getElementById('pagamentoUnidades').value, 10) || 0;
+    const f = fiado.find((x) => x.id === id);
+    if (!f || pago <= 0) return;
+    const novoPaid = Math.min(f.total_units, f.paid_units + pago);
+    try {
+      await updateFiado(id, { paid_units: novoPaid });
+      f.paid_units = novoPaid;
+      renderFiadoList();
+      document.getElementById('modalPagamentoFiado').classList.add('hidden');
+      this.reset();
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar. ' + (err.message || ''));
+    }
+  });
+
   function isFileProtocol() {
     return window.location.protocol === 'file:';
   }
@@ -661,6 +888,8 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     atualizarEstoque();
     atualizarGraficos();
     atualizarDatalistSabores();
+    atualizarPrevisao();
+    renderFiadoList();
   }
 
   init();
