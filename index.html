@@ -66,6 +66,7 @@
     <nav class="nav-tabs" role="tablist">
       <button type="button" class="nav-tab active" data-panel="resumo">Resumo</button>
       <button type="button" class="nav-tab" data-panel="previsao">Previsão de lucro</button>
+      <button type="button" class="nav-tab" data-panel="sabores">Por sabor</button>
       <button type="button" class="nav-tab" data-panel="fiado">Fiado</button>
     </nav>
 
@@ -215,6 +216,27 @@
       </section>
       </div>
 
+      <div id="painel-sabores" class="panel hidden">
+        <section class="bento">
+          <article class="card sabores-card">
+            <h3>🍰 Vendas por sabor</h3>
+            <p class="subtitle">Unidades vendidas por sabor na semana e no mês (vendas diretas + fiado quitado)</p>
+            <div class="sabores-table-wrap">
+              <table class="sabores-table" id="tabelaSabores">
+                <thead>
+                  <tr>
+                    <th>Sabor</th>
+                    <th>Esta semana</th>
+                    <th>Este mês</th>
+                  </tr>
+                </thead>
+                <tbody id="tabelaSaboresBody"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </div>
+
       <div id="painel-previsao" class="panel hidden">
         <section class="bento">
           <article class="card">
@@ -264,8 +286,11 @@
         </label>
         <label>
           Sabor
-          <input type="text" id="vendaSabor" placeholder="Ex: Chocolate" list="saboresList">
-          <datalist id="saboresList"></datalist>
+          <select id="vendaSabor" required>
+            <option value="Branquinho">Branquinho</option>
+            <option value="Brigadeiro">Brigadeiro</option>
+            <option value="Misto">Misto</option>
+          </select>
         </label>
         <label>
           Data
@@ -284,6 +309,13 @@
       </div>
       <form id="formNovoFiado" class="modal-form">
         <label>Nome <input type="text" id="fiadoNome" required placeholder="Ex: Jaqueline"></label>
+        <label>Sabor
+          <select id="fiadoSabor" required>
+            <option value="Branquinho">Branquinho</option>
+            <option value="Brigadeiro">Brigadeiro</option>
+            <option value="Misto">Misto</option>
+          </select>
+        </label>
         <label>Unidades (potes) <input type="number" id="fiadoUnidades" min="1" value="1" required></label>
         <button type="submit" class="btn-submit">Adicionar</button>
       </form>

@@ -886,6 +886,34 @@ body {
   margin-bottom: 0.5rem;
 }
 
+/* Por sabor */
+.sabores-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+.sabores-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+.sabores-table th,
+.sabores-table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--cream-dark);
+}
+.sabores-table th {
+  font-weight: 700;
+  color: var(--chocolate);
+  background: var(--cream-dark);
+}
+.sabores-table tbody tr:hover {
+  background: var(--cream);
+}
+.sabores-card .subtitle {
+  margin-bottom: 0.25rem;
+}
+
 .hidden {
   display: none !important;
 }

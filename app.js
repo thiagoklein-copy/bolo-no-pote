@@ -78,7 +78,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     ]);
     let fiadoRes = { data: null };
     try {
-      fiadoRes = await supabase.from('fiado').select('id, nome, total_units, paid_units').order('nome', { ascending: true });
+      fiadoRes = await supabase.from('fiado').select('id, nome, sabor, total_units, paid_units').order('nome', { ascending: true });
     } catch (_) {}
     if (vendasRes.data && Array.isArray(vendasRes.data)) {
       vendas = vendasRes.data.map((r) => ({
@@ -98,6 +98,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       fiado = fiadoRes.data.map((r) => ({
         id: r.id,
         nome: r.nome || '',
+        sabor: r.sabor || 'Não informado',
         total_units: r.total_units ?? 0,
         paid_units: r.paid_units ?? 0,
       }));
@@ -245,6 +246,19 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       const d = parseDataLocal(v.data);
       if (!d) return false;
       return d >= segunda && d <= fimHoje;
+    });
+  }
+
+  function vendasEsteMes() {
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    inicioMes.setHours(0, 0, 0, 0);
+    const fimHoje = new Date();
+    fimHoje.setHours(23, 59, 59, 999);
+    return vendas.filter((v) => {
+      const d = parseDataLocal(v.data);
+      if (!d) return false;
+      return d >= inicioMes && d <= fimHoje;
     });
   }
 
@@ -416,14 +430,15 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     if (elMesLucro) elMesLucro.textContent = formatBrl(prevMesLucro);
   }
 
-  async function insertFiado(nome, unidades) {
+  async function insertFiado(nome, sabor, unidades) {
     if (!supabase) throw new Error('Supabase não configurado.');
     const { data: row, error } = await supabase.from('fiado').insert({
       nome: String(nome).trim(),
+      sabor: String(sabor || 'Não informado').trim(),
       total_units: Number(unidades) || 0,
       paid_units: 0,
       updated_at: new Date().toISOString(),
-    }).select('id, nome, total_units, paid_units').single();
+    }).select('id, nome, sabor, total_units, paid_units').single();
     if (error) throw error;
     return row;
   }
@@ -447,8 +462,9 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       const quitado = restante === 0;
       const div = document.createElement('div');
       div.className = 'fiado-item' + (quitado ? ' quitado' : '');
+      const saborLabel = (f.sabor && f.sabor !== 'Não informado') ? ' · ' + f.sabor : '';
       div.innerHTML =
-        '<div><span class="fiado-nome">' + (f.nome || 'Sem nome') + '</span>' +
+        '<div><span class="fiado-nome">' + (f.nome || 'Sem nome') + '</span>' + saborLabel +
         (quitado ? ' <span class="fiado-detalhes">✓ Quitado</span>' : '') +
         '<p class="fiado-detalhes">Comprou ' + f.total_units + ' un. · Pagou ' + f.paid_units + ' un.' +
         (restante > 0 ? ' · Faltam <span class="fiado-restante">' + restante + ' un. (R$ ' + valorRestante.toFixed(2) + ')</span>' : '') + '</p></div>' +
@@ -494,6 +510,48 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     document.getElementById('pagamentoUnidades').setAttribute('max', restante);
     document.getElementById('modalPagamentoFiado').classList.remove('hidden');
     document.getElementById('formPagamentoFiado').dataset.fiadoId = f.id;
+  }
+
+  function normalizarSaborChave(s) {
+    return (s || '').trim().toLowerCase();
+  }
+
+  function normalizarSaborDisplay(s) {
+    const k = normalizarSaborChave(s);
+    const map = { 'branquinho': 'Branquinho', 'brigadeiro': 'Brigadeiro', 'misto': 'Misto', 'não informado': 'Não informado' };
+    if (map[k]) return map[k];
+    if (!k) return 'Não informado';
+    return k.charAt(0).toUpperCase() + k.slice(1);
+  }
+
+  function atualizarSabores() {
+    const vSemana = vendasEstaSemana();
+    const vMes = vendasEsteMes();
+    const porChave = {};
+    vSemana.forEach((v) => {
+      const key = normalizarSaborChave(v.sabor) || 'não informado';
+      if (!porChave[key]) porChave[key] = { unSemana: 0, unMes: 0 };
+      porChave[key].unSemana += v.quantidade || 0;
+    });
+    vMes.forEach((v) => {
+      const key = normalizarSaborChave(v.sabor) || 'não informado';
+      if (!porChave[key]) porChave[key] = { unSemana: 0, unMes: 0 };
+      porChave[key].unMes += v.quantidade || 0;
+    });
+    const porSabor = Object.entries(porChave).map(([key, d]) => ({
+      sabor: normalizarSaborDisplay(key),
+      unSemana: d.unSemana,
+      unMes: d.unMes,
+    })).sort((a, b) => a.sabor.localeCompare(b.sabor));
+    const tbody = document.getElementById('tabelaSaboresBody');
+    if (!tbody) return;
+    if (porSabor.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3">Nenhuma venda registrada ainda.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = porSabor
+      .map((r) => '<tr><td>' + r.sabor + '</td><td>' + r.unSemana + ' un.</td><td>' + r.unMes + ' un.</td></tr>')
+      .join('');
   }
 
   function atualizarInsumosUI() {
@@ -696,7 +754,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
   document.getElementById('formVenda').addEventListener('submit', async function (e) {
     e.preventDefault();
     const quantidade = parseInt(document.getElementById('vendaQuantidade').value, 10);
-    const sabor = document.getElementById('vendaSabor').value.trim() || 'Não informado';
+    const sabor = document.getElementById('vendaSabor').value;
     const data = document.getElementById('vendaData').value;
     const btn = this.querySelector('button[type="submit"]');
     const btnText = btn.textContent;
@@ -706,13 +764,6 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       const id = await saveVendaToSupabase(quantidade, sabor, data);
       vendas.push({ id, quantidade, sabor, data });
       vendas.sort((a, b) => (parseDataLocal(a.data) || 0) - (parseDataLocal(b.data) || 0));
-
-      const list = document.getElementById('saboresList');
-      if (sabor && !Array.from(list.options).some((o) => o.value === sabor)) {
-        const opt = document.createElement('option');
-        opt.value = sabor;
-        list.appendChild(opt);
-      }
 
       document.getElementById('modalVenda').classList.add('hidden');
       this.reset();
@@ -724,6 +775,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       atualizarGraficos();
       atualizarDatalistSabores();
       atualizarPrevisao();
+      atualizarSabores();
     } catch (err) {
       console.error('Erro ao registrar venda:', err);
       const msg = err && err.message ? err.message : String(err);
@@ -734,14 +786,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
   });
 
   function atualizarDatalistSabores() {
-    const sabores = [...new Set(vendas.map((v) => v.sabor).filter(Boolean))];
-    const list = document.getElementById('saboresList');
-    list.innerHTML = '';
-    sabores.forEach((s) => {
-      const opt = document.createElement('option');
-      opt.value = s;
-      list.appendChild(opt);
-    });
+    /* Sabores fixos em select (Registrar venda e Novo fiado) – nada a atualizar */
   }
 
   document.documentElement.setAttribute('data-theme', getTemaAtual());
@@ -788,6 +833,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
 
   document.getElementById('btnNovoFiado').addEventListener('click', function () {
     document.getElementById('fiadoNome').value = '';
+    document.getElementById('fiadoSabor').value = 'Branquinho';
     document.getElementById('fiadoUnidades').value = 1;
     document.getElementById('modalNovoFiado').classList.remove('hidden');
   });
@@ -800,10 +846,11 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
   document.getElementById('formNovoFiado').addEventListener('submit', async function (e) {
     e.preventDefault();
     const nome = document.getElementById('fiadoNome').value.trim();
+    const sabor = document.getElementById('fiadoSabor').value.trim() || 'Não informado';
     const unidades = parseInt(document.getElementById('fiadoUnidades').value, 10) || 1;
     try {
-      const row = await insertFiado(nome, unidades);
-      fiado.push({ id: row.id, nome: row.nome, total_units: row.total_units, paid_units: row.paid_units });
+      const row = await insertFiado(nome, sabor, unidades);
+      fiado.push({ id: row.id, nome: row.nome, sabor: row.sabor || 'Não informado', total_units: row.total_units, paid_units: row.paid_units });
       fiado.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
       renderFiadoList();
       document.getElementById('modalNovoFiado').classList.add('hidden');
@@ -856,8 +903,9 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       f.paid_units = novoPaid;
 
       const dataHoje = new Date().toISOString().slice(0, 10);
-      const vendaId = await saveVendaToSupabase(pago, 'Não informado', dataHoje);
-      vendas.push({ id: vendaId, quantidade: pago, sabor: 'Não informado', data: dataHoje });
+      const saborVenda = (f.sabor && f.sabor !== 'Não informado') ? f.sabor : 'Não informado';
+      const vendaId = await saveVendaToSupabase(pago, saborVenda, dataHoje);
+      vendas.push({ id: vendaId, quantidade: pago, sabor: saborVenda, data: dataHoje });
       vendas.sort((a, b) => (parseDataLocal(a.data) || 0) - (parseDataLocal(b.data) || 0));
       atualizarMetricas();
       atualizarMetas();
@@ -865,6 +913,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       atualizarGraficos();
       atualizarDatalistSabores();
       atualizarPrevisao();
+      atualizarSabores();
 
       renderFiadoList();
       document.getElementById('modalPagamentoFiado').classList.add('hidden');
@@ -901,6 +950,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     atualizarGraficos();
     atualizarDatalistSabores();
     atualizarPrevisao();
+    atualizarSabores();
     renderFiadoList();
   }
 

@@ -66,15 +66,18 @@ CREATE POLICY "config_select" ON config FOR SELECT USING (true);
 CREATE POLICY "config_update" ON config FOR UPDATE USING (true);
 CREATE POLICY "config_insert" ON config FOR INSERT WITH CHECK (true);
 
--- Tabela de fiado (vendas a prazo: nome, total de unidades, quantas já pagou)
+-- Tabela de fiado (vendas a prazo: nome, sabor, total de unidades, quantas já pagou)
 CREATE TABLE IF NOT EXISTS fiado (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nome TEXT NOT NULL,
+  sabor TEXT NOT NULL DEFAULT 'Não informado',
   total_units INTEGER NOT NULL DEFAULT 0,
   paid_units INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+-- Garantir coluna sabor em tabelas já existentes
+ALTER TABLE fiado ADD COLUMN IF NOT EXISTS sabor TEXT NOT NULL DEFAULT 'Não informado';
 
 ALTER TABLE fiado ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "fiado_select" ON fiado;
