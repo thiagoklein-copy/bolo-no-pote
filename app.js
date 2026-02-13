@@ -53,6 +53,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
   let vendas = [];
   let receitasProduzidas = 0;
   let fiado = [];
+  let saidas = [];
 
   function getTemaAtual() {
     const salvo = localStorage.getItem(STORAGE_TEMA);
@@ -65,6 +66,9 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     if (window.chartVendas && window.chartEquilibrio) {
       atualizarGraficos();
     }
+    if (window.chartSabores) {
+      atualizarSabores();
+    }
   }
 
   async function loadFromSupabase() {
@@ -73,12 +77,16 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       return;
     }
     const [vendasRes, configRes] = await Promise.all([
-      supabase.from('vendas').select('id, quantidade, sabor, data').order('data', { ascending: true }),
+      supabase.from('vendas').select('id, quantidade, sabor, data, created_at').order('data', { ascending: true }),
       supabase.from('config').select('receitas_produzidas, insumos').eq('id', 1).single(),
     ]);
     let fiadoRes = { data: null };
+    let saidasRes = { data: null };
     try {
       fiadoRes = await supabase.from('fiado').select('id, nome, sabor, total_units, paid_units').order('nome', { ascending: true });
+    } catch (_) {}
+    try {
+      saidasRes = await supabase.from('saidas').select('id, valor, ingredientes, created_at').order('created_at', { ascending: false });
     } catch (_) {}
     if (vendasRes.data && Array.isArray(vendasRes.data)) {
       vendas = vendasRes.data.map((r) => ({
@@ -86,6 +94,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
         quantidade: r.quantidade,
         sabor: r.sabor || 'Não informado',
         data: r.data,
+        created_at: r.created_at || null,
       }));
     }
     if (configRes.data) {
@@ -104,6 +113,16 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       }));
     } else {
       fiado = [];
+    }
+    if (saidasRes.data && Array.isArray(saidasRes.data)) {
+      saidas = saidasRes.data.map((r) => ({
+        id: r.id,
+        valor: Number(r.valor) || 0,
+        ingredientes: Array.isArray(r.ingredientes) ? r.ingredientes : [],
+        created_at: r.created_at || null,
+      }));
+    } else {
+      saidas = [];
     }
   }
 
@@ -270,25 +289,13 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     const list = filtrarVendas(vendas);
     const unidades = totalUnidades(list);
     const faturamento = unidades * PRECO_VENDA;
-    const custoReceitas = Math.ceil(unidades / UNIDADES_POR_RECEITA) * getCustoTotalReceita();
-    const custoEmbalagem = unidades * EMBALAGEM_POR_UNIDADE;
-    const gastos = custoReceitas + custoEmbalagem;
-    const lucro = faturamento - gastos;
-    const investimento = gastos;
-    const roi = investimento > 0 ? ((lucro / investimento) * 100).toFixed(1) : '0';
-
     document.getElementById('faturamento').textContent = formatBrl(faturamento);
-    document.getElementById('lucro').textContent = formatBrl(lucro);
-    document.getElementById('gastos').textContent = formatBrl(gastos);
-    document.getElementById('roi').textContent = roi + '%';
   }
 
   function lucroAcumuladoTotal() {
-    const unidades = totalUnidades(vendas);
-    const faturamento = unidades * PRECO_VENDA;
-    const custoReceitas = Math.ceil(unidades / UNIDADES_POR_RECEITA) * getCustoTotalReceita();
-    const custoEmbalagem = unidades * EMBALAGEM_POR_UNIDADE;
-    return faturamento - custoReceitas - custoEmbalagem;
+    const totalEntradas = totalUnidades(vendas) * PRECO_VENDA;
+    const totalSaidas = saidas.reduce((acc, s) => acc + (s.valor || 0), 0);
+    return totalEntradas - totalSaidas;
   }
 
   function atualizarMetas() {
@@ -547,11 +554,189 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     if (!tbody) return;
     if (porSabor.length === 0) {
       tbody.innerHTML = '<tr><td colspan="3">Nenhuma venda registrada ainda.</td></tr>';
+      if (chartSabores) { chartSabores.destroy(); chartSabores = null; window.chartSabores = null; }
       return;
     }
     tbody.innerHTML = porSabor
       .map((r) => '<tr><td>' + r.sabor + '</td><td>' + r.unSemana + ' un.</td><td>' + r.unMes + ' un.</td></tr>')
       .join('');
+
+    const ctxSabores = document.getElementById('chartSabores');
+    if (ctxSabores) {
+      if (chartSabores) chartSabores.destroy();
+      const cores = CORES_GRAFICO[getTemaAtual()] || CORES_GRAFICO.soft;
+      chartSabores = new Chart(ctxSabores, {
+        type: 'bar',
+        data: {
+          labels: porSabor.map((r) => r.sabor),
+          datasets: [
+            {
+              label: 'Esta semana',
+              data: porSabor.map((r) => r.unSemana),
+              backgroundColor: cores.bar,
+              borderColor: cores.barBorder,
+              borderWidth: 1,
+              borderRadius: 8,
+            },
+            {
+              label: 'Este mês',
+              data: porSabor.map((r) => r.unMes),
+              backgroundColor: cores.doughnut[0],
+              borderColor: cores.barBorder,
+              borderWidth: 1,
+              borderRadius: 8,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { color: '#4a4a4a' } } },
+          scales: {
+            y: { beginAtZero: true, ticks: { color: '#4a4a4a', stepSize: 1 } },
+            x: { ticks: { color: '#4a4a4a' } },
+          },
+        },
+      });
+      window.chartSabores = chartSabores;
+    }
+  }
+
+  function getListaIngredientes() {
+    const nomes = new Set();
+    (insumos.massa || []).forEach((i) => nomes.add(i.nome));
+    (insumos.recheio || []).forEach((i) => nomes.add(i.nome));
+    (insumos.cobertura || []).forEach((i) => nomes.add(i.nome));
+    return Array.from(nomes).sort((a, b) => a.localeCompare(b));
+  }
+
+  function getFluxoRange() {
+    const sel = document.getElementById('fluxoFiltroPeriodo');
+    const valor = sel ? sel.value : 'mes';
+    const agora = new Date();
+    let inicio, fim;
+    if (valor === '7dias') {
+      fim = new Date(agora);
+      fim.setHours(23, 59, 59, 999);
+      inicio = new Date(agora);
+      inicio.setDate(inicio.getDate() - 6);
+      inicio.setHours(0, 0, 0, 0);
+    } else if (valor === 'personalizado') {
+      const from = document.getElementById('fluxoDateFrom');
+      const to = document.getElementById('fluxoDateTo');
+      inicio = from && from.value ? new Date(from.value + 'T00:00:00') : new Date(agora.getFullYear(), agora.getMonth(), 1);
+      fim = to && to.value ? new Date(to.value + 'T23:59:59.999') : new Date();
+    } else {
+      inicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
+      inicio.setHours(0, 0, 0, 0);
+      fim = new Date();
+      fim.setHours(23, 59, 59, 999);
+    }
+    return { inicio, fim };
+  }
+
+  function getMovimentacoesFiltradas() {
+    const { inicio, fim } = getFluxoRange();
+    const itens = [];
+    vendas.forEach((v) => {
+      const createdAt = v.created_at ? new Date(v.created_at) : parseDataLocal(v.data);
+      if (!createdAt) return;
+      if (createdAt >= inicio && createdAt <= fim) {
+        itens.push({
+          tipo: 'entrada',
+          data: createdAt,
+          valor: (v.quantidade || 0) * PRECO_VENDA,
+          descricao: 'Venda – ' + (v.quantidade || 0) + ' un.',
+        });
+      }
+    });
+    saidas.forEach((s) => {
+      const createdAt = s.created_at ? new Date(s.created_at) : null;
+      if (!createdAt) return;
+      if (createdAt >= inicio && createdAt <= fim) {
+        itens.push({
+          tipo: 'saida',
+          data: createdAt,
+          valor: s.valor || 0,
+          descricao: (s.ingredientes && s.ingredientes.length) ? s.ingredientes.join(', ') : 'Saída',
+        });
+      }
+    });
+    itens.sort((a, b) => b.data.getTime() - a.data.getTime());
+    return itens;
+  }
+
+  function formatDataHora(d) {
+    const x = d instanceof Date ? d : new Date(d);
+    const dia = String(x.getDate()).padStart(2, '0');
+    const mes = String(x.getMonth() + 1).padStart(2, '0');
+    const ano = x.getFullYear();
+    const h = String(x.getHours()).padStart(2, '0');
+    const min = String(x.getMinutes()).padStart(2, '0');
+    return dia + '/' + mes + '/' + ano + ' ' + h + ':' + min;
+  }
+
+  function renderFluxoList() {
+    const list = document.getElementById('fluxoList');
+    const balancoEl = document.getElementById('fluxoBalanco');
+    if (!list) return;
+    const itens = getMovimentacoesFiltradas();
+    let totalEntradas = 0;
+    let totalSaidas = 0;
+    itens.forEach((i) => {
+      if (i.tipo === 'entrada') totalEntradas += i.valor;
+      else totalSaidas += i.valor;
+    });
+    const balanco = totalEntradas - totalSaidas;
+    list.innerHTML = itens.length === 0
+      ? '<li class="fluxo-empty">Nenhuma movimentação no período.</li>'
+      : itens.map((i) => {
+          const isEntrada = i.tipo === 'entrada';
+          return '<li class="fluxo-item fluxo-' + i.tipo + '">' +
+            '<span class="fluxo-data">' + formatDataHora(i.data) + '</span> ' +
+            '<span class="fluxo-desc">' + (i.descricao || (isEntrada ? 'Entrada' : 'Saída')) + '</span> ' +
+            '<span class="fluxo-valor">' + (isEntrada ? '+' : '−') + ' R$ ' + i.valor.toFixed(2).replace('.', ',') + '</span>' +
+            '</li>';
+        }).join('');
+    if (balancoEl) {
+      balancoEl.className = 'fluxo-balanco ' + (balanco >= 0 ? 'positivo' : 'negativo');
+      balancoEl.textContent = 'Balanço: R$ ' + balanco.toFixed(2).replace('.', ',');
+    }
+  }
+
+  function renderFluxoIngredientes() {
+    const container = document.getElementById('saidaIngredientesList');
+    if (!container) return;
+    const lista = getListaIngredientes();
+    container.innerHTML = lista.map((nome) =>
+      '<label class="fluxo-check"><input type="checkbox" name="saidaIngrediente" value="' + nome.replace(/"/g, '&quot;') + '"> ' + nome + '</label>'
+    ).join('');
+  }
+
+  async function insertSaida(valor, ingredientes) {
+    if (!supabase) throw new Error('Supabase não configurado.');
+    const { data: row, error } = await supabase.from('saidas').insert({
+      valor: Number(valor) || 0,
+      ingredientes: Array.isArray(ingredientes) ? ingredientes : [],
+    }).select('id, valor, ingredientes, created_at').single();
+    if (error) throw error;
+    return row;
+  }
+
+  function exportFluxoCSV() {
+    const itens = getMovimentacoesFiltradas();
+    const linhas = ['Data e hora;Tipo;Descrição;Valor (R$)'];
+    itens.forEach((i) => {
+      const tipo = i.tipo === 'entrada' ? 'Entrada' : 'Saída';
+      const valorStr = (i.tipo === 'entrada' ? '+' : '-') + i.valor.toFixed(2).replace('.', ',');
+      linhas.push(formatDataHora(i.data) + ';' + tipo + ';' + (i.descricao || '').replace(/;/g, ',') + ';' + valorStr);
+    });
+    const blob = new Blob(['\uFEFF' + linhas.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'entradas-saidas-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   function atualizarInsumosUI() {
@@ -617,7 +802,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     });
   }
 
-  let chartVendas, chartEquilibrio;
+  let chartVendas, chartEquilibrio, chartSabores;
 
   function atualizarGraficos() {
     const list = filtrarVendas(vendas);
@@ -762,7 +947,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     btn.textContent = 'Salvando…';
     try {
       const id = await saveVendaToSupabase(quantidade, sabor, data);
-      vendas.push({ id, quantidade, sabor, data });
+      vendas.push({ id, quantidade, sabor, data, created_at: new Date().toISOString() });
       vendas.sort((a, b) => (parseDataLocal(a.data) || 0) - (parseDataLocal(b.data) || 0));
 
       document.getElementById('modalVenda').classList.add('hidden');
@@ -776,6 +961,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       atualizarDatalistSabores();
       atualizarPrevisao();
       atualizarSabores();
+      renderFluxoList();
     } catch (err) {
       console.error('Erro ao registrar venda:', err);
       const msg = err && err.message ? err.message : String(err);
@@ -905,7 +1091,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       const dataHoje = new Date().toISOString().slice(0, 10);
       const saborVenda = (f.sabor && f.sabor !== 'Não informado') ? f.sabor : 'Não informado';
       const vendaId = await saveVendaToSupabase(pago, saborVenda, dataHoje);
-      vendas.push({ id: vendaId, quantidade: pago, sabor: saborVenda, data: dataHoje });
+      vendas.push({ id: vendaId, quantidade: pago, sabor: saborVenda, data: dataHoje, created_at: new Date().toISOString() });
       vendas.sort((a, b) => (parseDataLocal(a.data) || 0) - (parseDataLocal(b.data) || 0));
       atualizarMetricas();
       atualizarMetas();
@@ -914,6 +1100,7 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
       atualizarDatalistSabores();
       atualizarPrevisao();
       atualizarSabores();
+      renderFluxoList();
 
       renderFiadoList();
       document.getElementById('modalPagamentoFiado').classList.add('hidden');
@@ -951,8 +1138,54 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, 
     atualizarDatalistSabores();
     atualizarPrevisao();
     atualizarSabores();
+    renderFluxoIngredientes();
+    renderFluxoList();
     renderFiadoList();
   }
 
+  const fluxoFiltro = document.getElementById('fluxoFiltroPeriodo');
+  if (fluxoFiltro) {
+    fluxoFiltro.addEventListener('change', function () {
+      const customRange = document.getElementById('fluxoCustomRange');
+      if (customRange) customRange.classList.toggle('hidden', this.value !== 'personalizado');
+      renderFluxoList();
+    });
+  }
+  const fluxoFrom = document.getElementById('fluxoDateFrom');
+  if (fluxoFrom) fluxoFrom.addEventListener('change', renderFluxoList);
+  const fluxoTo = document.getElementById('fluxoDateTo');
+  if (fluxoTo) fluxoTo.addEventListener('change', renderFluxoList);
+  const btnExport = document.getElementById('btnExportarFluxo');
+  if (btnExport) btnExport.addEventListener('click', exportFluxoCSV);
+  const formSaida = document.getElementById('formNovaSaida');
+  if (formSaida) formSaida.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const valor = parseFloat(document.getElementById('saidaValor').value.replace(',', '.'), 10);
+    if (!Number.isFinite(valor) || valor < 0) {
+      alert('Informe um valor válido em reais.');
+      return;
+    }
+    const checkboxes = document.querySelectorAll('input[name="saidaIngrediente"]:checked');
+    const ingredientes = Array.from(checkboxes).map((c) => c.value);
+    try {
+      const row = await insertSaida(valor, ingredientes);
+      saidas.push({ id: row.id, valor: row.valor, ingredientes: row.ingredientes || [], created_at: row.created_at });
+      saidas.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      renderFluxoList();
+      atualizarMetas();
+      document.getElementById('saidaValor').value = '';
+      checkboxes.forEach((c) => { c.checked = false; });
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar saída. ' + (err.message || ''));
+    }
+  });
+
   init();
+  // Re-render fluxo when opening the tab (in case period was changed elsewhere)
+  document.querySelectorAll('.nav-tab').forEach(function (tab) {
+    if (tab.getAttribute('data-panel') === 'fluxo') {
+      tab.addEventListener('click', renderFluxoList);
+    }
+  });
 })();

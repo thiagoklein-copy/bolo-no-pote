@@ -67,6 +67,7 @@
       <button type="button" class="nav-tab active" data-panel="resumo">Resumo</button>
       <button type="button" class="nav-tab" data-panel="previsao">Previsão de lucro</button>
       <button type="button" class="nav-tab" data-panel="sabores">Por sabor</button>
+      <button type="button" class="nav-tab" data-panel="fluxo">Entradas e Saídas</button>
       <button type="button" class="nav-tab" data-panel="fiado">Fiado</button>
     </nav>
 
@@ -84,21 +85,6 @@
           <div class="card-icon">💰</div>
           <h3>Faturamento Total</h3>
           <p class="card-value" id="faturamento">R$ 0,00</p>
-        </article>
-        <article class="card card-lucro" data-metric="lucro">
-          <div class="card-icon">✨</div>
-          <h3>Lucro Líquido</h3>
-          <p class="card-value" id="lucro">R$ 0,00</p>
-        </article>
-        <article class="card card-gastos" data-metric="gastos">
-          <div class="card-icon">📦</div>
-          <h3>Total de Gastos</h3>
-          <p class="card-value" id="gastos">R$ 0,00</p>
-        </article>
-        <article class="card card-roi" data-metric="roi">
-          <div class="card-icon">📈</div>
-          <h3>ROI</h3>
-          <p class="card-value" id="roi">0%</p>
         </article>
       </section>
 
@@ -233,6 +219,12 @@
                 <tbody id="tabelaSaboresBody"></tbody>
               </table>
             </div>
+            <div class="sabores-chart-wrap">
+              <h4 class="sabores-chart-title">Comparação por sabor (unidades)</h4>
+              <div class="chart-container chart-sabores">
+                <canvas id="chartSabores"></canvas>
+              </div>
+            </div>
           </article>
         </section>
       </div>
@@ -256,6 +248,43 @@
                 <p>Lucro previsto: <strong id="prevMesLucro">R$ 0,00</strong></p>
               </div>
             </div>
+          </article>
+        </section>
+      </div>
+
+      <div id="painel-fluxo" class="panel hidden">
+        <section class="bento">
+          <article class="card fluxo-card">
+            <h3>💵 Entradas e Saídas</h3>
+            <p class="subtitle">Entradas: vendas e pagamentos de fiado. Saídas: registre cada compra manualmente.</p>
+            <div class="fluxo-filtro">
+              <label>Período</label>
+              <select id="fluxoFiltroPeriodo">
+                <option value="7dias">Últimos 7 dias</option>
+                <option value="mes" selected>Mês atual</option>
+                <option value="personalizado">Personalizado</option>
+              </select>
+              <div id="fluxoCustomRange" class="custom-range hidden">
+                <input type="date" id="fluxoDateFrom">
+                <input type="date" id="fluxoDateTo">
+              </div>
+              <button type="button" class="btn-small btn-export" id="btnExportarFluxo">📥 Baixar planilha</button>
+            </div>
+            <div class="fluxo-nova-saida">
+              <h4>Nova saída</h4>
+              <form id="formNovaSaida" class="fluxo-form-saida">
+                <label>Valor (R$) <input type="number" id="saidaValor" min="0" step="0.01" placeholder="77" inputmode="decimal"></label>
+                <div class="fluxo-ingredientes-wrap">
+                  <label>Ingredientes comprados</label>
+                  <div class="fluxo-ingredientes-list" id="saidaIngredientesList"></div>
+                </div>
+                <button type="submit" class="btn-submit">Registrar saída</button>
+              </form>
+            </div>
+            <div class="fluxo-list-wrap">
+              <ul class="fluxo-list" id="fluxoList"></ul>
+            </div>
+            <div class="fluxo-balanco" id="fluxoBalanco"></div>
           </article>
         </section>
       </div>

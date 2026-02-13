@@ -86,3 +86,16 @@ DROP POLICY IF EXISTS "fiado_update" ON fiado;
 CREATE POLICY "fiado_select" ON fiado FOR SELECT USING (true);
 CREATE POLICY "fiado_insert" ON fiado FOR INSERT WITH CHECK (true);
 CREATE POLICY "fiado_update" ON fiado FOR UPDATE USING (true);
+
+-- Tabela de saídas (gastos manuais: compras, mercado)
+CREATE TABLE IF NOT EXISTS saidas (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  valor NUMERIC(10,2) NOT NULL,
+  ingredientes JSONB NOT NULL DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE saidas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "saidas_select" ON saidas;
+DROP POLICY IF EXISTS "saidas_insert" ON saidas;
+CREATE POLICY "saidas_select" ON saidas FOR SELECT USING (true);
+CREATE POLICY "saidas_insert" ON saidas FOR INSERT WITH CHECK (true);
