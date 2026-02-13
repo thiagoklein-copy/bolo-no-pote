@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Operação Bolo no Pote</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">🧁</span>
+        <h1>Bolo no Pote</h1>
+      </div>
+      <div class="header-actions">
+        <div class="theme-toggle-wrap">
+          <button type="button" class="btn-theme" id="btnTema" aria-label="Escolher tema" title="Escolher tema">
+            🎨 Tema
+          </button>
+          <div class="theme-picker hidden" id="themePicker">
+            <p class="theme-picker-title">Escolha as cores</p>
+            <div class="theme-options">
+              <button type="button" class="theme-opt" data-theme="soft" title="Soft & Sweet">
+                <span class="theme-swatch theme-swatch-soft"></span>
+                <span>Soft & Sweet</span>
+              </button>
+              <button type="button" class="theme-opt" data-theme="lavanda" title="Lavanda & Mel">
+                <span class="theme-swatch theme-swatch-lavanda"></span>
+                <span>Lavanda & Mel</span>
+              </button>
+              <button type="button" class="theme-opt" data-theme="mint" title="Mint & Pêssego">
+                <span class="theme-swatch theme-swatch-mint"></span>
+                <span>Mint & Pêssego</span>
+              </button>
+              <button type="button" class="theme-opt" data-theme="ceu" title="Céu & Areia">
+                <span class="theme-swatch theme-swatch-ceu"></span>
+                <span>Céu & Areia</span>
+              </button>
+              <button type="button" class="theme-opt" data-theme="caramelo" title="Caramelo & Nata">
+                <span class="theme-swatch theme-swatch-caramelo"></span>
+                <span>Caramelo & Nata</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="period-filter">
+        <label>Período</label>
+        <select id="filterPeriod">
+          <option value="hoje">Hoje</option>
+          <option value="7dias">Últimos 7 dias</option>
+          <option value="mes">Mês atual</option>
+          <option value="personalizado">Personalizado</option>
+        </select>
+        <div id="customRange" class="custom-range hidden">
+          <input type="date" id="dateFrom">
+          <input type="date" id="dateTo">
+        </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="cta-section">
+        <button type="button" class="btn-register" id="btnRegistrarVenda">
+          <span class="btn-icon">➕</span>
+          <span>Registrar Venda</span>
+        </button>
+      </section>
+
+      <section class="metrics bento">
+        <article class="card card-faturamento" data-metric="faturamento">
+          <div class="card-icon">💰</div>
+          <h3>Faturamento Total</h3>
+          <p class="card-value" id="faturamento">R$ 0,00</p>
+        </article>
+        <article class="card card-lucro" data-metric="lucro">
+          <div class="card-icon">✨</div>
+          <h3>Lucro Líquido</h3>
+          <p class="card-value" id="lucro">R$ 0,00</p>
+        </article>
+        <article class="card card-gastos" data-metric="gastos">
+          <div class="card-icon">📦</div>
+          <h3>Total de Gastos</h3>
+          <p class="card-value" id="gastos">R$ 0,00</p>
+        </article>
+        <article class="card card-roi" data-metric="roi">
+          <div class="card-icon">📈</div>
+          <h3>ROI</h3>
+          <p class="card-value" id="roi">0%</p>
+        </article>
+      </section>
+
+      <section class="goals bento">
+        <article class="card goal-main">
+          <div class="goal-main-header">
+            <span class="goal-main-icon">🍰</span>
+            <div>
+              <h3 class="goal-main-title">Caminho para os R$ 7.000</h3>
+              <p class="goal-main-subtitle">Meta de lucro até 10/08/2026</p>
+            </div>
+          </div>
+          <div class="goal-main-stats">
+            <div class="goal-stat-block">
+              <span class="goal-stat-label">Lucro já obtido</span>
+              <span class="goal-stat-value" id="lucroJaVendido">R$ 0,00</span>
+            </div>
+            <div class="goal-stat-block">
+              <span class="goal-stat-label">Falta para a meta</span>
+              <span class="goal-stat-value" id="faltaMetaReais">R$ 7.000,00</span>
+            </div>
+            <div class="goal-stat-block">
+              <span class="goal-stat-label">% da meta</span>
+              <span class="goal-stat-value goal-stat-percent" id="percentMeta">0%</span>
+            </div>
+            <div class="goal-stat-block">
+              <span class="goal-stat-label">Faltam vender</span>
+              <span class="goal-stat-value" id="faltamVenderMeta">0 potes</span>
+            </div>
+          </div>
+          <div class="goal-main-progress">
+            <div class="progress-wrap progress-wrap-main">
+              <div class="progress-bar" role="progressbar" id="progress7k"></div>
+            </div>
+            <p class="progress-label"><span id="percent7k">0</span>% conquistado</p>
+          </div>
+        </article>
+        <div class="goal-minis">
+          <article class="card goal-daily goal-card" id="cardMetaDiaria">
+            <h3>Meta diária</h3>
+            <div class="progress-wrap progress-wrap-goal">
+              <div class="progress-bar" role="progressbar" id="progressDiaria"></div>
+            </div>
+            <p class="progress-label" id="labelMetaDiaria">0 / 0 vendidos</p>
+          </article>
+          <article class="card goal-weekly goal-card" id="cardMetaSemanal">
+            <h3>Meta semanal</h3>
+            <div class="progress-wrap progress-wrap-goal">
+              <div class="progress-bar" role="progressbar" id="progressSemanal"></div>
+            </div>
+            <p class="progress-label" id="labelMetaSemanal">0 / 0 vendidos</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="charts bento">
+        <article class="card chart-card">
+          <h3>📊 Evolução de Vendas</h3>
+          <div class="chart-container">
+            <canvas id="chartVendas"></canvas>
+          </div>
+        </article>
+        <article class="card chart-card">
+          <h3>⚖️ Ponto de Equilíbrio</h3>
+          <p class="subtitle">Quanto falta vender para pagar os custos do mês</p>
+          <div class="chart-container">
+            <canvas id="chartEquilibrio"></canvas>
+          </div>
+          <p class="equilibrio-text" id="textEquilibrio"></p>
+        </article>
+      </section>
+
+      <section class="stock bento">
+        <article class="card stock-card">
+          <h3>🧮 Receitas Prontas / Estoque</h3>
+          <p class="subtitle">Potes em estoque com base em receitas produzidas vs vendidas</p>
+          <div class="stock-control">
+            <label>Receitas produzidas (cada = 12 potes)</label>
+            <div class="stock-input-row">
+              <input type="number" id="receitasProduzidas" min="0" value="0">
+              <span class="stock-result">= <strong id="potesProduzidos">0</strong> potes</span>
+            </div>
+          </div>
+          <div class="stock-summary">
+            <p>Potes vendidos (período selecionado): <strong id="potesVendidos">0</strong></p>
+            <p>Total vendido (todos os tempos): <strong id="potesVendidosTotal">0</strong></p>
+            <p class="highlight">Potes em estoque: <strong id="potesEstoque">0</strong></p>
+          </div>
+        </article>
+      </section>
+
+      <section class="insumos-section bento">
+        <article class="card insumos-card">
+          <h3>🥣 Gestão de Insumos</h3>
+          <p class="subtitle">Atualize o preço por quilo/unidade para recalcular os custos</p>
+          <div class="insumos-tables">
+            <div class="insumos-group">
+              <h4>Massa Chocolate</h4>
+              <div id="tabelaMassa" class="insumos-table"></div>
+              <p class="custo-componente">Custo massa: R$ <span id="custoMassa">17,29</span></p>
+            </div>
+            <div class="insumos-group">
+              <h4>Recheio</h4>
+              <div id="tabelaRecheio" class="insumos-table"></div>
+              <p class="custo-componente">Custo recheio: R$ <span id="custoRecheio">16,17</span></p>
+            </div>
+            <div class="insumos-group">
+              <h4>Cobertura</h4>
+              <div id="tabelaCobertura" class="insumos-table"></div>
+              <p class="custo-componente">Custo cobertura: R$ <span id="custoCobertura">11,83</span></p>
+            </div>
+          </div>
+          <p class="insumos-total">Custo total por receita (12 un.): R$ <strong id="custoTotalReceita">60,29</strong></p>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-overlay hidden" id="modalVenda">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Registrar Venda</h2>
+        <button type="button" class="modal-close" id="closeModalVenda" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="formVenda" class="modal-form">
+        <label>
+          Quantidade (potes)
+          <input type="number" id="vendaQuantidade" min="1" required>
+        </label>
+        <label>
+          Sabor
+          <input type="text" id="vendaSabor" placeholder="Ex: Chocolate" list="saboresList">
+          <datalist id="saboresList"></datalist>
+        </label>
+        <label>
+          Data
+          <input type="date" id="vendaData" required>
+        </label>
+        <button type="submit" class="btn-submit">Salvar venda</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

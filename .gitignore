@@ -1,0 +1,21 @@
+# Dependências
+node_modules/
+
+# Config com chaves (nunca commitar)
+config.js
+.env
+.env.local
+.env.*.local
+
+# Vercel
+.vercel
+
+# Sistema / IDE
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+
+# Cursor
+.cursor/
